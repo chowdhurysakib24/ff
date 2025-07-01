@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<DiamondCollectorApp>
+  <head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Diamond Collector</title>
+    <style><![CDATA[
+      body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        text-align: center;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+        color: #e0e0e0;
+        position: relative;
+      }
+      .button {
+        background: linear-gradient(45deg, #00ffea, #0066ff);
+        color: #fff;
+        padding: 15px 30px;
+        margin: 10px;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: bold;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        transition: transform .2s;
+      }
+      .button:hover { transform: scale(1.05); }
+      .coin-balance { font-size: 26px; margin: 20px 0; }
+      .section { display: none; width: 100%; max-width: 600px; margin: auto; }
+      .section.active { display: block; }
+      .ad-container {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, .85);
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+      }
+      .ad-frame { width: 90%; height: 80%; border: none; border-radius: 12px; }
+      .timer { color: #00ffea; font-size: 24px; margin-top: 20px; }
+      .network-required {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background: #000;
+        color: #ff4c4c;
+        font-size: 24px;
+        text-align: center;
+        padding: 20px;
+      }
+    ]]></style>
+  </head>
+  <body>
+    <script><![CDATA[
+      (function enforceOnline() {
+        if (!navigator.onLine) {
+          document.write('<div class="network-required">🔒 Network Required<br>Please connect to the internet to use this application.</div>');
+          return;
+        }
+        window.addEventListener('offline', () => {
+          location.reload();
+        });
+      })();
+    ]]></script>
+
+    <section id="welcome" class="section active">
+      <h1>Welcome to Diamond Collector</h1>
+      <button class="button" onclick="show('main')">Start</button>
+    </section>
+
+    <section id="main" class="section">
+      <p>👆প্রতি এড দেখার পর ফিরে আসুন।</p>
+      <div class="coin-balance">Your Balance: <span id="balance">0.00</span> Coins</div>
+      <button class="button" onclick="watchAd()">Watch Ad (+0.25)</button>
+      <button class="button" onclick="show('withdraw')">Go to Withdraw</button>
+    </section>
+
+    <section id="withdraw" class="section">
+      <h2>Withdraw</h2>
+      <label><input type="radio" name="pkg" value="25"/> 25 Diamonds = 100 Coins</label><br/>
+      <label><input type="radio" name="pkg" value="50"/> 50 Diamonds = 170 Coins</label><br/>
+      <label><input type="radio" name="pkg" value="115"/> 115 Diamonds = 300 Coins</label><br/><br/>
+      <input id="ffName" placeholder="Free Fire ID Name"/><br/>
+      <input id="ffUid" placeholder="Free Fire UID"/><br/><br/>
+      <button class="button" onclick="submitWithdraw()">Submit</button>
+      <button class="button" onclick="show('main')">Back to Game</button>
+    </section>
+
+    <div id="adBox" class="ad-container">
+      <iframe id="adFrame" class="ad-frame"></iframe>
+      <div class="timer" id="timer">10</div>
+    </div>
+
+    <script><![CDATA[
+      const BALANCE_KEY = 'coinCollectorBalance';
+      const STORAGE_KEY = 'coinCollectorWithdrawals';
+      let balance = 0;
+      let interval;
+
+      function loadBalance() {
+        const saved = localStorage.getItem(BALANCE_KEY);
+        balance = saved ? parseFloat(saved) : 0;
+        updateBalanceDisplay();
+      }
+
+      function saveBalance() {
+        localStorage.setItem(BALANCE_KEY, balance.toFixed(2));
+      }
+
+      function updateBalanceDisplay() {
+        document.getElementById('balance').textContent = balance.toFixed(2);
+      }
+
+      function show(id) {
+        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+      }
+
+      function watchAd() {
+        const adBox = document.getElementById('adBox');
+        const frame = document.getElementById('adFrame');
+        let t = 10;
+        frame.src = 'https://impartialreefham.com/aef79b45?key=44a0d6c3d9362ec3f4d77fbeea736d4b';
+        adBox.style.display = 'flex';
+        document.getElementById('timer').textContent = t;
+        interval = setInterval(() => {
+          if (--t <= 0) {
+            clearInterval(interval);
+            adBox.style.display = 'none';
+            frame.src = '';
+            balance += 0.25;
+            saveBalance();
+            updateBalanceDisplay();
+            show('main');
+          } else {
+            document.getElementById('timer').textContent = t;
+          }
+        }, 1000);
+      }
+
+      function submitWithdraw() {
+        const pkg = document.querySelector('input[name="pkg"]:checked');
+        const name = document.getElementById('ffName').value.trim();
+        const uid = document.getElementById('ffUid').value.trim();
+        if (!pkg || !name || !uid) return alert('Fill all fields!');
+        const costMap = { 25: 100, 50: 170, 115: 300 };
+        const cost = costMap[pkg.value];
+        if (balance < cost) return alert('Not enough coins!');
+
+        balance -= cost;
+        saveBalance();
+        updateBalanceDisplay();
+
+        const rec = { name, uid, diamonds: +pkg.value, date: new Date().toISOString() };
+        const arr = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        arr.push(rec);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
+
+        alert('Withdrawal saved!');
+        show('main');
+      }
+
+      window.addEventListener('load', () => {
+        loadBalance();
+      });
+    ]]></script>
+  </body>
+</DiamondCollectorApp>
